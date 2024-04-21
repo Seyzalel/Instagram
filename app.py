@@ -1,7 +1,13 @@
 import asyncio
 from pyppeteer import launch
+import telebot
+import nest_asyncio
+nest_asyncio.apply()
 
-async def main():
+bot_token = '7091104502:AAHAkisdLFjjsuLEGoYbnuMkG86U4Tvai_g'
+bot = telebot.TeleBot(bot_token, parse_mode=None)
+
+async def login_and_screenshot(chat_id):
     browser = await launch(headless=True, args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-infobars', '--window-size=1920,1080'])
     page = await browser.newPage()
     await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3")
@@ -14,14 +20,17 @@ async def main():
     
     loginButton = await page.waitForSelector('div[class^="x9f619"]', {'visible': True})
     await loginButton.click()
-    try:
-        await page.waitForNavigation()
-        saveInfoButton = await page.waitForSelector('button[class="_acan _acap _acas _aj1- _ap30"]', {'visible': True})
-        await saveInfoButton.click()
-        print("Login foi bem sucedido.")
-    except:
-        print("Login mal sucedido.")
-
+    screenshot_path = f'{chat_id}_login_screenshot.png'
+    await page.screenshot({'path': screenshot_path})
     await browser.close()
+    return screenshot_path
 
-asyncio.get_event_loop().run_until_complete(main())
+@bot.message_handler(commands=['start'])
+def start_message(message):
+    chat_id = message.chat.id
+    asyncio.run(login_and_screenshot(chat_id))
+    photo = open(f'{chat_id}_login_screenshot.png', 'rb')
+    bot.send_photo(chat_id, photo)
+    photo.close()
+
+bot.polling()
